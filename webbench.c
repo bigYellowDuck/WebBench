@@ -26,9 +26,9 @@
 
 /* values */
 volatile int timerexpired=0;
-int speed=0;
-int failed=0;
-int bytes=0;
+int speed=0;	// 成功次数
+int failed=0;	// 失败次数
+int bytes=0;	// 读入字节
 /* globals */
 int http10=1; /* 0 - http/0.9, 1 - http/1.0, 2 - http/1.1 */
 /* Allow: GET, HEAD, OPTIONS, TRACE */
@@ -41,15 +41,16 @@ int method=METHOD_GET;
 int clients=1;
 int force=0;
 int force_reload=0;
-int proxyport=80;
-char *proxyhost=NULL;
-int benchtime=30;
+int proxyport=80;		// 默认端口号
+char *proxyhost=NULL;	// 代理主机
+int benchtime=30;		// 运行时间
 /* internal */
 int mypipe[2];
 char host[MAXHOSTNAMELEN];
 #define REQUEST_SIZE 2048
-char request[REQUEST_SIZE];
+char request[REQUEST_SIZE];	// http请求数组
 
+// 长参数
 static const struct option long_options[]=
 {
  {"force",no_argument,&force,1},
@@ -79,6 +80,7 @@ static void alarm_handler(int signal)
    timerexpired=1;
 }	
 
+// 输出webbench用法 当不输入命令行参数， 或者输入参数-h -? --help时均会调用该函数
 static void usage(void)
 {
    fprintf(stderr,
@@ -105,17 +107,18 @@ int main(int argc, char *argv[])
  int options_index=0;
  char *tmp=NULL;
 
- if(argc==1)
+ if(argc==1)	//没有命令行参数 输出用法
  {
-	  usage();
+	  usage();	
           return 2;
  } 
 
+//逐个解析参数
  while((opt=getopt_long(argc,argv,"912Vfrt:p:c:?h",long_options,&options_index))!=EOF )
  {
   switch(opt)
   {
-   case  0 : break;
+   case  0 : break;	
    case 'f': force=1;break;
    case 'r': force_reload=1;break; 
    case '9': http10=0;break;
@@ -125,24 +128,24 @@ int main(int argc, char *argv[])
    case 't': benchtime=atoi(optarg);break;	     
    case 'p': 
 	     /* proxy server parsing server:port */
-	     tmp=strrchr(optarg,':');
-	     proxyhost=optarg;
+	     tmp=strrchr(optarg,':');	// 找到最后一个':'字符的位置， 即tmp分隔开了代理服务器名字和端口
+	     proxyhost=optarg;	// 把代理服务器保存下来
 	     if(tmp==NULL)
 	     {
 		     break;
 	     }
-	     if(tmp==optarg)
-	     {
+	     if(tmp==optarg)  // 如果tmp指向参数的第一个字符的位置，则表示':'字符在该-p 参数的开头
+	     {					// 就表示只是包含端口号或者表达式错误
 		     fprintf(stderr,"Error in option --proxy %s: Missing hostname.\n",optarg);
 		     return 2;
 	     }
-	     if(tmp==optarg+strlen(optarg)-1)
-	     {
+	     if(tmp==optarg+strlen(optarg)-1)	// 如果tmp指向参数的最后一个字符的位置，即':'在参数的末尾
+	     {									// 就表示只是包含了主机名或者表达式错误
 		     fprintf(stderr,"Error in option --proxy %s Port number is missing.\n",optarg);
 		     return 2;
 	     }
 	     *tmp='\0';
-	     proxyport=atoi(tmp+1);break;
+	     proxyport=atoi(tmp+1);break;  // 保存代理服务器的端口号
    case ':':
    case 'h':
    case '?': usage();return 2;break;
@@ -150,7 +153,10 @@ int main(int argc, char *argv[])
   }
  }
  
- if(optind==argc) {
+ if(optind==argc) {	// 如果此时的optind等于argc(参数个数)， 则命令行参数是不包含url的
+ 					// 因为上面的switch只是处理了选项参数，即usage里的options
+					// 而optind初始值为1， 每调用一次getopt_long就增加1，但最后还必有一个url
+					// 表示要测试的服务器，此时的optind = argc-1才正确
                       fprintf(stderr,"webbench: Missing URL!\n");
 		      usage();
 		      return 2;
@@ -162,7 +168,7 @@ int main(int argc, char *argv[])
  fprintf(stderr,"Webbench - Simple Web Benchmark "PROGRAM_VERSION"\n"
 	 "Copyright (c) Radim Kolar 1997-2004, GPL Open Source Software.\n"
 	 );
- build_request(argv[optind]);
+ build_request(argv[optind]);	// 对于给定url构建http请求， 存在request中
  /* print bench info */
  printf("\nBenchmarking: ");
  switch(method)
@@ -209,7 +215,7 @@ void build_request(const char *url)
   if(method==METHOD_OPTIONS && http10<2) http10=2;
   if(method==METHOD_TRACE && http10<2) http10=2;
 
-  switch(method)
+  switch(method) // 构建请求行--请求方法
   {
 	  default:
 	  case METHOD_GET: strcpy(request,"GET");break;
@@ -220,7 +226,7 @@ void build_request(const char *url)
 		  
   strcat(request," ");
 
-  if(NULL==strstr(url,"://"))
+  if(NULL==strstr(url,"://"))	// 检验url中是否含有"://"
   {
 	  fprintf(stderr, "\n%s: is not a valid URL.\n",url);
 	  exit(2);
@@ -236,7 +242,7 @@ void build_request(const char *url)
              exit(2);
            }
   /* protocol/host delimiter */
-  i=strstr(url,"://")-url+3;
+  i=strstr(url,"://")-url+3;   // i是"://"后面字符的偏移量
   /* printf("%d\n",i); */
 
   if(strchr(url+i,'/')==NULL) {
@@ -246,21 +252,21 @@ void build_request(const char *url)
   if(proxyhost==NULL)
   {
    /* get port from hostname */
-   if(index(url+i,':')!=NULL &&
-      index(url+i,':')<index(url+i,'/'))
+   if(index(url+i,':')!=NULL &&				
+      index(url+i,':')<index(url+i,'/'))	// 若url中指定端口号
    {
-	   strncpy(host,url+i,strchr(url+i,':')-url-i);
+	   strncpy(host,url+i,strchr(url+i,':')-url-i); // 把主机名复制到host，即 "://"到":"之间的字符串
 	   bzero(tmp,10);
-	   strncpy(tmp,index(url+i,':')+1,strchr(url+i,'/')-index(url+i,':')-1);
+	   strncpy(tmp,index(url+i,':')+1,strchr(url+i,'/')-index(url+i,':')-1);// 把":"到"/"之间的字符串拷到tmp中，即端口号
 	   /* printf("tmp=%s\n",tmp); */
-	   proxyport=atoi(tmp);
+	   proxyport=atoi(tmp);		// 保存端口号
 	   if(proxyport==0) proxyport=80;
    } else
    {
      strncpy(host,url+i,strcspn(url+i,"/"));
    }
    // printf("Host=%s\n",host);
-   strcat(request+strlen(request),url+i+strcspn(url+i,"/"));
+   strcat(request+strlen(request),url+i+strcspn(url+i,"/"));	// uri复制到request数组, strcspn返回url+i开始到"/"的字符个数，即拼接url中"/"之后的字符串
   } else
   {
    // printf("ProxyHost=%s\nProxyPort=%d\n",proxyhost,proxyport);
@@ -281,10 +287,10 @@ void build_request(const char *url)
   }
   if(force_reload && proxyhost!=NULL)
   {
-	  strcat(request,"Pragma: no-cache\r\n");
+	  strcat(request,"Pragma: no-cache\r\n");	// 请求不能缓存
   }
   if(http10>1)
-	  strcat(request,"Connection: close\r\n");
+	  strcat(request,"Connection: close\r\n");	// 响应在完成后关闭连接
   /* add empty line at end */
   if(http10>0) strcat(request,"\r\n"); 
   // printf("Req=%s\n",request);
@@ -305,7 +311,7 @@ static int bench(void)
          }
   close(i);
   /* create pipe */
-  if(pipe(mypipe))
+  if(pipe(mypipe))	// 创建管道
   {
 	  perror("pipe failed.");
 	  return 3;
@@ -313,7 +319,7 @@ static int bench(void)
 
   /* not needed, since we have alarm() in childrens */
   /* wait 4 next system clock tick */
-  /*
+  /* 
   cas=time(NULL);
   while(time(NULL)==cas)
         sched_yield();
@@ -331,7 +337,7 @@ static int bench(void)
 	   }
   }
 
-  if( pid< (pid_t) 0)
+  if( pid< (pid_t) 0)	// fork错误 直接退出
   {
           fprintf(stderr,"problems forking worker no. %d\n",i);
 	  perror("fork failed.");
@@ -343,7 +349,7 @@ static int bench(void)
     /* I am a child */
     if(proxyhost==NULL)
       benchcore(host,proxyport,request);
-         else
+    else
       benchcore(proxyhost,proxyport,request);
 
          /* write results to pipe */
@@ -365,10 +371,10 @@ static int bench(void)
 		  perror("open pipe for reading failed.");
 		  return 3;
 	  }
-	  setvbuf(f,NULL,_IONBF,0);
+	  setvbuf(f,NULL,_IONBF,0);	// 设置不带缓冲区
 	  speed=0;
-          failed=0;
-          bytes=0;
+      failed=0;
+      bytes=0;
 
 	  while(1)
 	  {
@@ -378,11 +384,11 @@ static int bench(void)
                        fprintf(stderr,"Some of our childrens died.\n");
                        break;
                   }
-		  speed+=i;
+		  speed+=i;	
 		  failed+=j;
 		  bytes+=k;
 		  /* fprintf(stderr,"*Knock* %d %d read=%d\n",speed,failed,pid); */
-		  if(--clients==0) break;
+		  if(--clients==0) break;	// 当所有子进程都结束后跳出循环
 	  }
 	  fclose(f);
 
@@ -407,12 +413,12 @@ void benchcore(const char *host,const int port,const char *req)
  sa.sa_flags=0;
  if(sigaction(SIGALRM,&sa,NULL))
     exit(3);
- alarm(benchtime);
+ alarm(benchtime);	// 开启定时器
 
  rlen=strlen(req);
  nexttry:while(1)
  {
-    if(timerexpired)
+    if(timerexpired)		// 指定运行时间到了就退出进程
     {
        if(failed>0)
        {
@@ -447,6 +453,6 @@ void benchcore(const char *host,const int port,const char *req)
 	    }
     }
     if(close(s)) {failed++;continue;}
-    speed++;
+    speed++;	// 成功读取加1
  }
 }

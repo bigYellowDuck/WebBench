@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+// 创建一个连接给定IP或域名，和端口号的TCP套接字
 int Socket(const char *host, int clientPort)
 {
     int sock;
@@ -34,24 +35,24 @@ int Socket(const char *host, int clientPort)
     struct hostent *hp;
     
     memset(&ad, 0, sizeof(ad));
-    ad.sin_family = AF_INET;
+    ad.sin_family = AF_INET; // 协议为IPv4
 
-    inaddr = inet_addr(host);
-    if (inaddr != INADDR_NONE)
+    inaddr = inet_addr(host);	
+    if (inaddr != INADDR_NONE)	// 如果host为IPv4的字符串，返回32位二进制网络字节序的地址，否则为INADDR_NONE
         memcpy(&ad.sin_addr, &inaddr, sizeof(inaddr));
     else
     {
-        hp = gethostbyname(host);
+        hp = gethostbyname(host);	// 通过主机名获取主机信息
         if (hp == NULL)
             return -1;
         memcpy(&ad.sin_addr, hp->h_addr, hp->h_length);
     }
-    ad.sin_port = htons(clientPort);
+    ad.sin_port = htons(clientPort);	// 将端口号转为网络字节序
     
-    sock = socket(AF_INET, SOCK_STREAM, 0);
+    sock = socket(AF_INET, SOCK_STREAM, 0);	// 创建TCP套接字
     if (sock < 0)
         return sock;
-    if (connect(sock, (struct sockaddr *)&ad, sizeof(ad)) < 0)
+    if (connect(sock, (struct sockaddr *)&ad, sizeof(ad)) < 0)	// 对给定地址发起TCP连接， 三次握手成功或失败就返回
         return -1;
     return sock;
 }
